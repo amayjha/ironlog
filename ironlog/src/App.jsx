@@ -256,6 +256,13 @@ export default function App() {
     persist({ ...data, workouts: { ...data.workouts, [key]: copied } });
   };
 
+  const copyWorkoutToDay = (targetKey) => {
+    const entries = data.workouts[key] || [];
+    if (!entries.length) return;
+    const copied = entries.map((en) => ({ exId: en.exId, sets: en.sets.map((s) => ({ ...s, ts: Date.now() })) }));
+    persist({ ...data, workouts: { ...data.workouts, [targetKey]: copied } });
+  };
+
   const addCustomExercise = (name, group) => {
     const ex = { id: "c" + Date.now(), name: name.trim(), group };
     persist({ ...data, customExercises: [...data.customExercises, ex] });
@@ -279,6 +286,7 @@ export default function App() {
           onAdd={() => setScreen({ name: "pick" })}
           onBody={() => setScreen({ name: "body" })}
           onCopy={copyPreviousWorkout}
+          onCopyTo={copyWorkoutToDay}
           onToggleUnit={() => persist({ ...data, unit: data.unit === "kg" ? "lbs" : "kg" })}
           workouts={data.workouts}
         />
@@ -325,11 +333,32 @@ export default function App() {
 }
 
 /* ------------------------------ Home screen ------------------------------ */
-function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOpen, onAdd, onBody, onCopy, onToggleUnit, workouts }) {
+function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOpen, onAdd, onBody, onCopy, onCopyTo, onToggleUnit, workouts }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMsg, setShareMsg] = useState(null);
+  const [copyToOpen, setCopyToOpen] = useState(false);
+  const [copyToTarget, setCopyToTarget] = useState("");
+  const [copyMsg, setCopyMsg] = useState(null);
   const shift = (n) => { const d = new Date(date); d.setDate(d.getDate() + n); setDate(d); };
   const trainedDays = useMemo(() => new Set(Object.keys(workouts).filter((k) => workouts[k].length)), [workouts]);
+
+  const openCopyTo = () => {
+    const d = new Date(date); d.setDate(d.getDate() + 1);
+    setCopyToTarget(dkey(d));
+    setCopyToOpen(true);
+    setShareOpen(false);
+  };
+
+  const confirmCopyTo = () => {
+    if (!copyToTarget) return;
+    onCopyTo(copyToTarget);
+    setCopyToOpen(false);
+    const label = new Date(copyToTarget + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    setCopyMsg(`Copied to ${label}`);
+    setTimeout(() => setCopyMsg(null), 2500);
+  };
+
+  const copyToHasWorkout = copyToTarget && (workouts[copyToTarget] || []).length > 0;
 
   const doShare = async (kind) => {
     const msg = kind === "text"
@@ -357,6 +386,7 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
           </button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {entries.length > 0 && <button className="ghostbtn" onClick={openCopyTo}>Copy to</button>}
           {hasSets && <button className="ghostbtn" onClick={() => setShareOpen((o) => !o)}>Share</button>}
           <button className="ghostbtn" onClick={onToggleUnit}>{unit}</button>
           <button className="ghostbtn" onClick={onBody}>Body</button>
@@ -374,7 +404,30 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
         </div>
       )}
 
+      {copyToOpen && (
+        <div className="panel" style={{ display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 13, color: T.dim, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>Copy workout to</div>
+          <input
+            type="date"
+            className="input"
+            value={copyToTarget}
+            min={dkey(new Date(date.getFullYear(), date.getMonth(), date.getDate() - 365))}
+            onChange={(e) => setCopyToTarget(e.target.value)}
+          />
+          {copyToHasWorkout && (
+            <div style={{ fontSize: 13, color: T.accent }}>⚠ That day already has a workout — it will be replaced.</div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="primary" style={{ flex: 1 }} disabled={!copyToTarget || copyToTarget === dkey(date)} onClick={confirmCopyTo}>
+              {copyToHasWorkout ? "Replace" : "Copy"}
+            </button>
+            <button className="chip" style={{ padding: "12px 18px" }} onClick={() => setCopyToOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {shareMsg && <div className="toast">{shareMsg}</div>}
+      {copyMsg && <div className="toast">{copyMsg}</div>}
 
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <button className="navbtn" onClick={() => shift(-1)}>‹</button>
