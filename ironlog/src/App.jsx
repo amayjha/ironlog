@@ -256,8 +256,8 @@ export default function App() {
     persist({ ...data, workouts: { ...data.workouts, [key]: copied } });
   };
 
-  const copyWorkoutToDay = (targetKey) => {
-    const entries = data.workouts[key] || [];
+  const copyWorkoutToDay = (targetKey, exIds) => {
+    const entries = (data.workouts[key] || []).filter((en) => exIds.includes(en.exId));
     if (!entries.length) return;
     const copied = entries.map((en) => ({ exId: en.exId, sets: en.sets.map((s) => ({ ...s, ts: Date.now() })) }));
     persist({ ...data, workouts: { ...data.workouts, [targetKey]: copied } });
@@ -287,6 +287,7 @@ export default function App() {
           onBody={() => setScreen({ name: "body" })}
           onCopy={copyPreviousWorkout}
           onCopyTo={copyWorkoutToDay}
+          onRemove={removeExerciseFromDay}
           onToggleUnit={() => persist({ ...data, unit: data.unit === "kg" ? "lbs" : "kg" })}
           workouts={data.workouts}
         />
@@ -333,32 +334,46 @@ export default function App() {
 }
 
 /* ------------------------------ Home screen ------------------------------ */
-function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOpen, onAdd, onBody, onCopy, onCopyTo, onToggleUnit, workouts }) {
+function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOpen, onAdd, onBody, onCopy, onCopyTo, onRemove, onToggleUnit, workouts }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMsg, setShareMsg] = useState(null);
   const [copyToOpen, setCopyToOpen] = useState(false);
   const [copyToTarget, setCopyToTarget] = useState("");
+  const [copyToSelected, setCopyToSelected] = useState([]);
   const [copyMsg, setCopyMsg] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const shift = (n) => { const d = new Date(date); d.setDate(d.getDate() + n); setDate(d); };
   const trainedDays = useMemo(() => new Set(Object.keys(workouts).filter((k) => workouts[k].length)), [workouts]);
 
   const openCopyTo = () => {
     const d = new Date(date); d.setDate(d.getDate() + 1);
     setCopyToTarget(dkey(d));
+    setCopyToSelected(entries.map((en) => en.exId));
     setCopyToOpen(true);
     setShareOpen(false);
+    setConfirmDeleteId(null);
+  };
+
+  const toggleCopySelection = (exId) => {
+    setCopyToSelected((prev) => prev.includes(exId) ? prev.filter((id) => id !== exId) : [...prev, exId]);
   };
 
   const confirmCopyTo = () => {
-    if (!copyToTarget) return;
-    onCopyTo(copyToTarget);
+    if (!copyToTarget || !copyToSelected.length) return;
+    onCopyTo(copyToTarget, copyToSelected);
     setCopyToOpen(false);
     const label = new Date(copyToTarget + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    setCopyMsg(`Copied to ${label}`);
+    setCopyMsg(`Copied ${copyToSelected.length} exercise${copyToSelected.length > 1 ? "s" : ""} to ${label}`);
     setTimeout(() => setCopyMsg(null), 2500);
   };
 
   const copyToHasWorkout = copyToTarget && (workouts[copyToTarget] || []).length > 0;
+
+  const handleDeleteClick = (e, exId) => {
+    e.stopPropagation();
+    if (confirmDeleteId === exId) { onRemove(exId); setConfirmDeleteId(null); }
+    else setConfirmDeleteId(exId);
+  };
 
   const doShare = async (kind) => {
     const msg = kind === "text"
@@ -406,7 +421,29 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
 
       {copyToOpen && (
         <div className="panel" style={{ display: "grid", gap: 10 }}>
-          <div style={{ fontSize: 13, color: T.dim, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>Copy workout to</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 13, color: T.dim, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>Copy workout to</div>
+            <button className="ghostbtn" style={{ fontSize: 12, padding: "4px 8px" }}
+              onClick={() => setCopyToSelected(copyToSelected.length === entries.length ? [] : entries.map((en) => en.exId))}>
+              {copyToSelected.length === entries.length ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+          {entries.map((en) => {
+            const ex = exById[en.exId]; if (!ex) return null;
+            const sel = copyToSelected.includes(en.exId);
+            return (
+              <button key={en.exId} onClick={() => toggleCopySelection(en.exId)}
+                style={{ display: "flex", alignItems: "center", gap: 10, background: sel ? T.panelHi : "transparent",
+                  border: `1px solid ${sel ? T.accent : T.line}`, borderRadius: 10, padding: "10px 12px", color: T.text, textAlign: "left" }}>
+                <span style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${sel ? T.accent : T.faint}`,
+                  background: sel ? T.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, fontSize: 12, color: "#1A1408", fontWeight: 900 }}>{sel ? "✓" : ""}</span>
+                <span className="plate" style={{ background: GROUP_COLORS[ex.group] || T.dim }} />
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{ex.name}</span>
+                <span style={{ fontSize: 12, color: T.faint }}>{en.sets.length} set{en.sets.length !== 1 ? "s" : ""}</span>
+              </button>
+            );
+          })}
           <input
             type="date"
             className="input"
@@ -418,8 +455,10 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
             <div style={{ fontSize: 13, color: T.accent }}>⚠ That day already has a workout — it will be replaced.</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="primary" style={{ flex: 1 }} disabled={!copyToTarget || copyToTarget === dkey(date)} onClick={confirmCopyTo}>
-              {copyToHasWorkout ? "Replace" : "Copy"}
+            <button className="primary" style={{ flex: 1 }}
+              disabled={!copyToTarget || copyToTarget === dkey(date) || !copyToSelected.length}
+              onClick={confirmCopyTo}>
+              {copyToHasWorkout ? "Replace" : "Copy"} {copyToSelected.length > 0 ? `(${copyToSelected.length})` : ""}
             </button>
             <button className="chip" style={{ padding: "12px 18px" }} onClick={() => setCopyToOpen(false)}>Cancel</button>
           </div>
@@ -467,8 +506,10 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
             const ex = exById[en.exId]; if (!ex) return null;
             const best = en.sets.reduce((m, s) => Math.max(m, e1rm(s.w, s.r)), 0);
             const isPR = best > 0 && Math.abs(best - (bestByExercise[en.exId] || 0)) < 0.001;
+            const pendingDelete = confirmDeleteId === en.exId;
             return (
-              <button key={en.exId} className="card" onClick={() => onOpen(en.exId)}>
+              <button key={en.exId} className="card" onClick={() => { if (confirmDeleteId) setConfirmDeleteId(null); else onOpen(en.exId); }}
+                style={{ border: `1px solid ${pendingDelete ? T.red : T.line}` }}>
                 <span className="plate" style={{ background: GROUP_COLORS[ex.group] || T.dim }} />
                 <div style={{ flex: 1, textAlign: "left" }}>
                   <div style={{ fontWeight: 600 }}>{ex.name} {isPR && <span className="pr">PR</span>}</div>
@@ -476,7 +517,12 @@ function HomeScreen({ date, setDate, entries, exById, unit, bestByExercise, onOp
                     {en.sets.length === 0 ? "No sets yet" : en.sets.map((s) => `${s.w}×${s.r}`).join("  ·  ")}
                   </div>
                 </div>
-                <span style={{ color: T.faint }}>›</span>
+                <button onClick={(e) => handleDeleteClick(e, en.exId)}
+                  style={{ background: pendingDelete ? T.red : T.panelHi, color: pendingDelete ? "#fff" : T.faint,
+                    border: "none", borderRadius: 8, width: 32, height: 32, fontSize: 16, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {pendingDelete ? "✓" : "×"}
+                </button>
               </button>
             );
           })}
