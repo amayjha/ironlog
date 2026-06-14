@@ -87,13 +87,6 @@ export const css = `
     display: flex; justify-content: space-between; align-items: flex-start;
     gap: 8px; margin-bottom: 4px;
   }
-  .datebtn {
-    background: none; color: ${T.text}; font-size: 28px; font-weight: 700;
-    padding: 4px 0; text-align: left; border: none; cursor: pointer;
-    letter-spacing: 0.2px; touch-action: manipulation;
-    display: block; line-height: 1.1;
-  }
-
   /* ── Ghost / text buttons ── */
   .ghostbtn {
     color: ${T.accent}; padding: 10px 12px; border-radius: 12px; font-size: 16px;

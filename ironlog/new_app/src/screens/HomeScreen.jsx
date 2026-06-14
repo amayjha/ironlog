@@ -61,9 +61,20 @@ export default function HomeScreen({
       <header className="header">
         <div>
           <div className="brand">FITLOG</div>
-          <button className="datebtn" onClick={() => setDate(new Date())}>
-            {fmtDate(date)}{!isToday(date) ? " · tap for today" : ""}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 17 }}>
+              {isToday(date) ? "Today" : fmtDate(date)}
+            </div>
+            {!isToday(date) && (
+              <button
+                className="ghostbtn"
+                style={{ fontSize: 13, padding: "2px 10px", minHeight: 28 }}
+                onClick={() => setDate(new Date())}
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {hasSets && (
@@ -77,7 +88,6 @@ export default function HomeScreen({
           >
             {data.unit}
           </button>
-          <button className="ghostbtn" onClick={() => { setActiveTab("body"); }}>Body</button>
         </div>
       </header>
 
