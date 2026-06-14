@@ -14,6 +14,7 @@ import MoreScreen from "./screens/MoreScreen.jsx";
 import TemplatesScreen from "./screens/TemplatesScreen.jsx";
 import GoalsScreen from "./screens/GoalsScreen.jsx";
 import CalculatorsScreen from "./screens/CalculatorsScreen.jsx";
+import CopyWorkoutScreen from "./screens/CopyWorkoutScreen.jsx";
 
 /* ── Workout sharing ── */
 const buildShareText = (date, entries, exById, unit) => {
@@ -217,12 +218,19 @@ export default function App() {
     persist({ ...data, workouts: { ...data.workouts, [key]: entries } });
   };
 
-  const copyPreviousWorkout = () => {
-    const keys = Object.keys(data.workouts).filter((k) => k < key && data.workouts[k].length).sort();
-    if (!keys.length) return;
-    const prev = data.workouts[keys[keys.length - 1]];
-    const copied = prev.map((en) => ({ exId: en.exId, sets: en.sets.map((s) => ({ ...s, ts: Date.now() })), note: "" }));
-    persist({ ...data, workouts: { ...data.workouts, [key]: copied } });
+  const copyWorkout = (selections) => {
+    const today = [...(data.workouts[key] || [])];
+    for (const { exId, sets } of selections) {
+      const idx = today.findIndex(e => e.exId === exId);
+      const stamped = sets.map(s => ({ ...s, ts: Date.now() }));
+      if (idx >= 0) {
+        today[idx] = { ...today[idx], sets: [...today[idx].sets, ...stamped] };
+      } else {
+        today.push({ exId, sets: stamped, note: "" });
+      }
+    }
+    persist({ ...data, workouts: { ...data.workouts, [key]: today } });
+    setOverlay(null);
   };
 
   const addCustomExercise = (name, group) => {
@@ -337,7 +345,7 @@ export default function App() {
   const shared = {
     data, persist, date, setDate, key, todayEntries, allExercises, exById, bestByExercise,
     addExerciseToDay, addSet, updateSet, deleteSet, removeExerciseFromDay,
-    setExerciseNote, addCustomExercise, copyPreviousWorkout, setWorkoutNote,
+    setExerciseNote, addCustomExercise, copyWorkout, setWorkoutNote,
     saveTemplate, deleteTemplate, applyTemplate,
     addGoal, deleteGoal, markGoalAchieved, addBodyEntry,
     exportData, importData, startTimer, shareWorkout,
@@ -376,6 +384,15 @@ export default function App() {
       )}
       {overlay?.name === "calculators" && (
         <CalculatorsScreen {...shared} onBack={() => setOverlay(null)} />
+      )}
+      {overlay?.name === "copyworkout" && (
+        <CopyWorkoutScreen
+          data={data}
+          exById={exById}
+          todayKey={key}
+          onBack={() => setOverlay(null)}
+          onCopy={copyWorkout}
+        />
       )}
 
       <TimerBar timer={timer} onDismiss={() => setTimer(null)} />

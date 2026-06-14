@@ -4,7 +4,7 @@ import { dkey, fmtDate, isToday, e1rm, round1 } from "../utils.js";
 
 export default function HomeScreen({
   date, setDate, key, todayEntries, exById, bestByExercise, data,
-  addExerciseToDay, copyPreviousWorkout, removeExerciseFromDay,
+  addExerciseToDay, removeExerciseFromDay,
   setWorkoutNote, shareWorkout, persist, setOverlay, setActiveTab,
 }) {
   const [shareOpen, setShareOpen] = useState(false);
@@ -137,7 +137,7 @@ export default function HomeScreen({
           <div className="empty" style={{ padding: "24px 8px" }}>
             <div style={{ fontSize: 15, marginBottom: 14 }}>Nothing logged for this day.</div>
             <button className="primary" onClick={() => setOverlay({ name: "pick" })}>+ Add exercise</button>
-            <button className="ghostbtn" style={{ display: "block", margin: "6px auto 0" }} onClick={copyPreviousWorkout}>
+            <button className="ghostbtn" style={{ display: "block", margin: "6px auto 0" }} onClick={() => setOverlay({ name: "copyworkout" })}>
               Copy previous workout
             </button>
           </div>
