@@ -106,8 +106,8 @@ export default function HomeScreen({
       {shareMsg && <div className="toast">{shareMsg}</div>}
 
       {/* Date strip */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <button className="navbtn" onClick={() => shift(-1)}>‹</button>
+      <div className="panel" style={{ padding: "10px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+        <button className="navbtn" style={{ height: 48, borderRadius: 10 }} onClick={() => shift(-1)}>‹</button>
         <div className="strip">
           {strip.map((d) => {
             const k = dkey(d);
@@ -128,96 +128,98 @@ export default function HomeScreen({
             );
           })}
         </div>
-        <button className="navbtn" onClick={() => shift(1)}>›</button>
+        <button className="navbtn" style={{ height: 48, borderRadius: 10 }} onClick={() => shift(1)}>›</button>
       </div>
 
       {/* Workout content */}
-      {todayEntries.length === 0 ? (
-        <div className="empty">
-          <div style={{ fontSize: 15, marginBottom: 14 }}>Nothing logged for this day.</div>
-          <button className="primary" onClick={() => setOverlay({ name: "pick" })}>+ Add exercise</button>
-          <button className="ghostbtn" style={{ marginTop: 10, display: "block", margin: "10px auto 0" }} onClick={copyPreviousWorkout}>
-            Copy previous workout
-          </button>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "2px 2px 0" }}>
-            <span style={{ color: T.faint, fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>
-              {todayEntries.length} exercise{todayEntries.length !== 1 ? "s" : ""}
-            </span>
-            {totalVolume > 0 && (
-              <span style={{ color: T.label, fontSize: 13 }}>
-                Vol {round1(totalVolume).toLocaleString()} {data.unit}
-              </span>
-            )}
-          </div>
-
-          {todayEntries.map((en) => {
-            const ex = exById[en.exId];
-            if (!ex) return null;
-            const best = en.sets.reduce((m, s) => Math.max(m, e1rm(s.w, s.r)), 0);
-            const isPR = best > 0 && Math.abs(best - (bestByExercise[en.exId] || 0)) < 0.001;
-            const pendingDelete = confirmDeleteId === en.exId;
-            return (
-              <button
-                key={en.exId}
-                className={`card${pendingDelete ? " danger" : ""}`}
-                onClick={() => { if (confirmDeleteId) setConfirmDeleteId(null); else setOverlay({ name: "log", exId: en.exId }); }}
-              >
-                <span className="plate" style={{ background: GROUP_COLORS[ex.group] || T.label }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {ex.name}
-                    {isPR && <span className="pr">PR</span>}
-                  </div>
-                  <div style={{ color: T.label, fontSize: 13, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {en.sets.length === 0
-                      ? "No sets yet"
-                      : en.sets.map((s) => `${s.w}×${s.r}`).join("  ·  ")}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => handleDeleteClick(e, en.exId)}
-                  style={{
-                    background: pendingDelete ? T.red : T.card2,
-                    color: pendingDelete ? "#fff" : T.faint,
-                    border: "none", borderRadius: 10, width: 44, height: 44,
-                    fontSize: 18, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", touchAction: "manipulation",
-                  }}
-                >
-                  {pendingDelete ? "✓" : "×"}
-                </button>
-              </button>
-            );
-          })}
-
-          <button className="primary" style={{ marginTop: 4 }} onClick={() => setOverlay({ name: "pick" })}>
-            + Add exercise
-          </button>
-
-          {/* Workout note */}
-          <div>
-            <button
-              className="ghostbtn"
-              style={{ fontSize: 13, color: workoutNote ? T.text : T.faint, padding: "6px 0" }}
-              onClick={() => setNoteOpen((o) => !o)}
-            >
-              {noteOpen ? "▾" : "▸"} {workoutNote ? "Workout note" : "Add workout note"}
+      <div className="panel" style={{ display: "grid", gap: 10 }}>
+        {todayEntries.length === 0 ? (
+          <div className="empty" style={{ padding: "24px 8px" }}>
+            <div style={{ fontSize: 15, marginBottom: 14 }}>Nothing logged for this day.</div>
+            <button className="primary" onClick={() => setOverlay({ name: "pick" })}>+ Add exercise</button>
+            <button className="ghostbtn" style={{ display: "block", margin: "6px auto 0" }} onClick={copyPreviousWorkout}>
+              Copy previous workout
             </button>
-            {noteOpen && (
-              <textarea
-                className="input"
-                style={{ marginTop: 6 }}
-                placeholder="How did this session feel?"
-                value={workoutNote}
-                onChange={(e) => setWorkoutNote(e.target.value)}
-              />
-            )}
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ color: T.faint, fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>
+                {todayEntries.length} exercise{todayEntries.length !== 1 ? "s" : ""}
+              </span>
+              {totalVolume > 0 && (
+                <span style={{ color: T.label, fontSize: 13 }}>
+                  Vol {round1(totalVolume).toLocaleString()} {data.unit}
+                </span>
+              )}
+            </div>
+
+            {todayEntries.map((en) => {
+              const ex = exById[en.exId];
+              if (!ex) return null;
+              const best = en.sets.reduce((m, s) => Math.max(m, e1rm(s.w, s.r)), 0);
+              const isPR = best > 0 && Math.abs(best - (bestByExercise[en.exId] || 0)) < 0.001;
+              const pendingDelete = confirmDeleteId === en.exId;
+              return (
+                <button
+                  key={en.exId}
+                  className={`card${pendingDelete ? " danger" : ""}`}
+                  onClick={() => { if (confirmDeleteId) setConfirmDeleteId(null); else setOverlay({ name: "log", exId: en.exId }); }}
+                >
+                  <span className="plate" style={{ background: GROUP_COLORS[ex.group] || T.label }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {ex.name}
+                      {isPR && <span className="pr">PR</span>}
+                    </div>
+                    <div style={{ color: T.label, fontSize: 13, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {en.sets.length === 0
+                        ? "No sets yet"
+                        : en.sets.map((s) => `${s.w}×${s.r}`).join("  ·  ")}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, en.exId)}
+                    style={{
+                      background: pendingDelete ? T.red : T.card2,
+                      color: pendingDelete ? "#fff" : T.faint,
+                      border: "none", borderRadius: 10, width: 44, height: 44,
+                      fontSize: 18, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", touchAction: "manipulation",
+                    }}
+                  >
+                    {pendingDelete ? "✓" : "×"}
+                  </button>
+                </button>
+              );
+            })}
+
+            <button className="primary" onClick={() => setOverlay({ name: "pick" })}>
+              + Add exercise
+            </button>
+
+            {/* Workout note */}
+            <div>
+              <button
+                className="ghostbtn"
+                style={{ fontSize: 13, color: workoutNote ? T.text : T.faint, padding: "6px 0" }}
+                onClick={() => setNoteOpen((o) => !o)}
+              >
+                {noteOpen ? "▾" : "▸"} {workoutNote ? "Workout note" : "Add workout note"}
+              </button>
+              {noteOpen && (
+                <textarea
+                  className="input"
+                  style={{ marginTop: 6 }}
+                  placeholder="How did this session feel?"
+                  value={workoutNote}
+                  onChange={(e) => setWorkoutNote(e.target.value)}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
